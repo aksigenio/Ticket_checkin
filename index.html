@@ -15,11 +15,12 @@
     if (!token) {
       document.body.innerHTML = '<h2>❌ Токен отсутствует</h2>';
     } else {
-      const SCRIPT_URL = 'ВСТАВЬ_СЮДА_TВОЙ_APPS_SCRIPT_URL';
+      const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwvJuwrRAGaoD25VZA34QioEtMnCOTw40R0Ny4lIabEkH5PJlvrFNsx9A7tcDMnySrgdQ/exec';
 
       window.location.href =
         SCRIPT_URL + '?type=checkin&token=' + encodeURIComponent(token);
     }
   </script>
 </body>
+
 </html>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Проверка билета</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+  <p>Проверка билета…</p>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+
+    if (!token) {
+      document.body.innerHTML = '<h2>❌ Токен отсутствует</h2>';
+    } else {
+      const SCRIPT_URL = 'ВСТАВЬ_СЮДА_TВОЙ_APPS_SCRIPT_URL';
+
+      window.location.href =
+        SCRIPT_URL + '?type=checkin&token=' + encodeURIComponent(token);
+    }
+  </script>
+</body>
+</html>

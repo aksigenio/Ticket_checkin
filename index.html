@@ -4,25 +4,63 @@
   <meta charset="UTF-8">
   <title>Проверка билета</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial; padding: 16px; text-align: center; }
+    button { font-size: 18px; padding: 12px 20px; }
+    .ok { color: green; }
+    .err { color: red; }
+  </style>
 </head>
 <body>
-  <p>Проверка билета…</p>
 
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
+<h2>🎟 Проверка билета</h2>
+<div id="status">Загрузка…</div>
 
-    if (!token) {
-      document.body.innerHTML = '<h2>❌ Токен отсутствует</h2>';
+<button id="btn" style="display:none">✅ Подтвердить вход</button>
+
+<script>
+const API_URL = '👉 ВСТАВЬ СЮДА URL Apps Script /exec 👈';
+
+const params = new URLSearchParams(window.location.search);
+const token = params.get('token');
+const statusDiv = document.getElementById('status');
+const btn = document.getElementById('btn');
+
+if (!token) {
+  statusDiv.innerHTML = '<span class="err">❌ Токен отсутствует</span>';
+} else {
+  statusDiv.innerHTML = 'Билет найден';
+  btn.style.display = 'inline-block';
+}
+
+btn.onclick = async () => {
+  statusDiv.innerText = 'Подтверждение...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'checkin',
+        token: token
+      })
+    });
+
+    const json = await res.json();
+
+    if (json.ok) {
+      statusDiv.innerHTML = `<span class="ok">✅ Вход подтверждён<br>Место: ${json.seatId}</span>`;
     } else {
-      const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxOb39M5bPSL8UCsxqYyGkc_iRJ4sAb-dc_kU0Vo1JNXBHi-pqipxbgyJm_FSukb803Ag/exec';
-
-      window.location.href =
-        SCRIPT_URL + '?type=checkin&token=' + encodeURIComponent(token);
+      statusDiv.innerHTML = `<span class="err">❌ ${json.error}</span>`;
     }
-  </script>
-</body>
+  } catch (e) {
+    statusDiv.innerHTML = '<span class="err">❌ Ошибка сети</span>';
+  }
+};
+</script>
 
+</body>
 </html>
 
 

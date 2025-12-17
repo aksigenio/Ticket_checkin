@@ -1,32 +1,32 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Проверка билета</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
-      margin: 0;
-      background: #f7f7f7;
-      text-align: center;
     }
     .box {
       background: white;
       padding: 40px;
       border-radius: 12px;
-      box-shadow: 0 10px 25px rgba(0,0,0,.1);
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,.15);
     }
     .seat {
-      font-size: 64px;
+      font-size: 72px;
     }
     .error {
+      font-size: 24px;
       color: #c62828;
-      font-size: 22px;
     }
   </style>
 </head>
@@ -35,7 +35,8 @@
 <div class="box" id="app">Загрузка…</div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbxOb39M5bPSL8UCsxqYyGkc_iRJ4sAb-dc_kU0Vo1JNXBHi-pqipxbgyJm_FSukb803Ag/exec';
+const API_URL =
+  'https://script.google.com/macros/s/AKfycbxOb39M5bPSL8UCsxqYyGkc_iRJ4sAb-dc_kU0Vo1JNXBHi-pqipxbgyJm_FSukb803Ag/exec';
 
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -46,7 +47,7 @@ if (!token) {
 } else {
   fetch(API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {'Content-Type':'application/json'},
     body: JSON.stringify({
       type: 'checkin',
       token: token

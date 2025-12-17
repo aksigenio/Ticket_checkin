@@ -1,79 +1,82 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Проверка билета</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
       margin: 0;
+      font-family: Arial, sans-serif;
+      height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      background: #ffffff;
     }
-    .box {
-      background: white;
-      padding: 40px;
-      border-radius: 12px;
+    .center {
       text-align: center;
-      box-shadow: 0 10px 30px rgba(0,0,0,.15);
     }
     .seat {
       font-size: 72px;
+      margin: 0;
+    }
+    .text {
+      font-size: 18px;
+      color: #555;
     }
     .error {
-      font-size: 24px;
-      color: #c62828;
+      color: red;
+      font-size: 22px;
     }
   </style>
 </head>
 <body>
 
-<div class="box" id="app">Загрузка…</div>
+<div id="app" class="center">
+  <p>Проверка билета…</p>
+</div>
 
 <script>
-const API_URL =
-  'https://script.google.com/macros/s/AKfycbxOb39M5bPSL8UCsxqYyGkc_iRJ4sAb-dc_kU0Vo1JNXBHi-pqipxbgyJm_FSukb803Ag/exec';
+  const APPS_SCRIPT_URL =
+    'https://script.google.com/macros/s/ТВОЙ_DEPLOY_ID/exec';
 
-const params = new URLSearchParams(window.location.search);
-const token = params.get('token');
-const app = document.getElementById('app');
+  const app = document.getElementById('app');
 
-if (!token) {
-  app.innerHTML = '<div class="error">❌ Нет токена</div>';
-} else {
-  fetch(API_URL, {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      type: 'checkin',
-      token: token
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+
+  if (!token) {
+    app.innerHTML = '<h2 class="error">❌ Токен отсутствует</h2>';
+  } else {
+    fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        type: 'checkin',
+        token: token
+      })
     })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.ok) {
-      app.innerHTML = `
-        <div class="seat">🎟 ${data.seatId}</div>
-        <div>Номер места</div>
-      `;
-    } else {
-      if (data.error === 'already_used') {
-        app.innerHTML = '<div class="error">❌ Билет уже использован</div>';
-      } else if (data.error === 'not_approved') {
-        app.innerHTML = '<div class="error">❌ Билет не подтверждён</div>';
-      } else {
-        app.innerHTML = '<div class="error">❌ Билет не найден</div>';
-      }
-    }
-  })
-  .catch(() => {
-    app.innerHTML = '<div class="error">❌ Ошибка сети</div>';
-  });
-}
+      .then(res => res.json())
+      .then(data => {
+        if (!data.ok) {
+          app.innerHTML =
+            '<h2 class="error">❌ ' + (data.error || 'Ошибка проверки') + '</h2>';
+        } else {
+          app.innerHTML = `
+            <h1 class="seat">🎟 ${data.seatId}</h1>
+            <p class="text">Номер места</p>
+          `;
+        }
+      })
+      .catch(() => {
+        app.innerHTML =
+          '<h2 class="error">❌ Ошибка сети</h2>';
+      });
+  }
 </script>
 
 </body>

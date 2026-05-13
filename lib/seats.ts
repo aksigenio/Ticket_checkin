@@ -1,6 +1,6 @@
 export type RowLetter = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H";
 
-/** After which seat index (0-based) to insert central aisle gap */
+/** After which seat index (0-based) to insert central aisle gap (unused for current hall) */
 export type RowMeta = {
   label: RowLetter;
   /** Seat numbers in order left-to-right */
@@ -12,12 +12,8 @@ export type RowMeta = {
 };
 
 /**
- * Layout matches the hall diagram:
- * A: 6 seats centered (we center via CSS)
- * B–E: 13 seats
- * Aisle between E and F
- * F,G: 8 seats with vertical aisle after seats 1–3 (left block), then 4–8
- * H: 12 seats with aisle after seats 1–4, then 5–12
+ * F, G, H — сплошной ряд без центрального прохода на схеме.
+ * Aisle between E and F kept via sectionBreakBefore on F.
  */
 export const ROWS: RowMeta[] = [
   { label: "A", seats: [1, 2, 3, 4, 5, 6] },
@@ -28,11 +24,10 @@ export const ROWS: RowMeta[] = [
   {
     label: "F",
     seats: [1, 2, 3, 4, 5, 6, 7, 8],
-    aisleAfterIndex: 3,
     sectionBreakBefore: true,
   },
-  { label: "G", seats: [1, 2, 3, 4, 5, 6, 7, 8], aisleAfterIndex: 3 },
-  { label: "H", seats: Array.from({ length: 12 }, (_, i) => i + 1), aisleAfterIndex: 4 },
+  { label: "G", seats: [1, 2, 3, 4, 5, 6, 7, 8] },
+  { label: "H", seats: Array.from({ length: 12 }, (_, i) => i + 1) },
 ];
 
 export function seatLabel(row: RowLetter, seat: number): string {

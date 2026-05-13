@@ -106,8 +106,8 @@ export function BookingDialog({
           <div className="mt-6 rounded-lg border border-[var(--accent-green)]/40 bg-emerald-50/80 p-4 text-sm text-emerald-950">
             <p className="font-semibold">Заявка отправлена</p>
             <p className="mt-2 leading-relaxed">
-              После проверки оплаты на указанный email будет выслан билет с номером места и буквой ряда. Обычно это
-              занимает немного времени. Спасибо!
+              После проверки оплаты на указанный email будет выслан билет с номером места и буквой ряда — обычно{" "}
+              <strong>в течение суток</strong>. Спасибо!
             </p>
             <button
               type="button"

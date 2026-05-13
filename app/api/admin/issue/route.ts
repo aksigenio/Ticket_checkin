@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServiceSupabase } from "@/lib/supabase-server";
-import { customerTicketEmail } from "@/lib/email";
+import { customerTicketEmail, customerTicketEmailHtml } from "@/lib/email";
 import { sendSmtpMail, smtpConfigured } from "@/lib/smtp";
+import { loadTicketPosterForEmail, POSTER_CID } from "@/lib/ticket-poster";
 
 function checkAdmin(req: Request): boolean {
   const pwd = process.env.ADMIN_PASSWORD;
@@ -56,15 +57,40 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Нельзя выдать билет для этой заявки." }, { status: 400 });
   }
 
+  const rowLetter = row.row_letter as string;
+  const seatNum = row.seat_number as number;
+
   const { subject, text } = customerTicketEmail({
-    row: row.row_letter as string,
-    seat: row.seat_number as number,
+    row: rowLetter,
+    seat: seatNum,
   });
+
+  const poster = await loadTicketPosterForEmail();
+  const hasPoster = poster !== null;
+
+  const html = customerTicketEmailHtml({
+    row: rowLetter,
+    seat: seatNum,
+    posterCid: POSTER_CID,
+    hasPoster,
+  });
+
+  const attachments = hasPoster
+    ? [
+        {
+          filename: poster.attachmentFilename,
+          content: poster.buffer,
+          cid: POSTER_CID,
+        },
+      ]
+    : undefined;
 
   const { error: mailErr } = await sendSmtpMail({
     to: row.email as string,
     subject,
     text,
+    html,
+    attachments,
   });
 
   if (mailErr) {

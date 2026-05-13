@@ -69,6 +69,9 @@ export function HomePage() {
           <p className="px-1 pt-4 text-center text-sm text-stone-600">
             Выберите свободное место на схеме. На узком экране схему можно прокручивать вбок.
           </p>
+          <p className="mx-auto mt-3 max-w-xl rounded-lg border border-stone-300/90 bg-amber-50/90 px-3 py-2.5 text-center text-sm text-stone-800">
+            Билет придёт на указанный email <strong>в течение суток</strong> после проверки оплаты.
+          </p>
 
           {loadingMap ? (
             <p className="py-8 text-center text-sm text-stone-500">Загрузка схемы…</p>

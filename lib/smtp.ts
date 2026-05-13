@@ -36,11 +36,16 @@ function createTransport() {
   });
 }
 
+export type SmtpAttachment =
+  | { filename: string; content: Buffer }
+  | { filename: string; content: Buffer; cid: string };
+
 export async function sendSmtpMail(opts: {
   to: string;
   subject: string;
   text: string;
-  attachments?: { filename: string; content: Buffer }[];
+  html?: string;
+  attachments?: SmtpAttachment[];
 }): Promise<{ error?: string }> {
   try {
     const transporter = createTransport();
@@ -49,6 +54,7 @@ export async function sendSmtpMail(opts: {
       to: opts.to,
       subject: opts.subject,
       text: opts.text,
+      html: opts.html,
       attachments: opts.attachments,
     });
     return {};

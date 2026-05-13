@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { RowLetter } from "@/lib/seats";
 
-const IBAN_LINE = "Aleksei Khudiakov — NL62 BUNQ 2076 1197 28";
+const IBAN_LINE = "Aleksei Khudiakov - NL62 BUNQ 2076 1197 28";
 
 export function BookingDialog({
   row,
@@ -75,8 +75,9 @@ export function BookingDialog({
             </h2>
             <p className="mt-1 text-sm text-stone-700">
               FILA <span className="font-semibold">{row}</span>, место{" "}
-              <span className="font-semibold">{seat}</span> —{" "}
-              <span className="font-semibold text-[var(--accent-green)]">{priceLabel}</span>
+              <span className="font-semibold">{seat}</span>
+              {" "}
+              (<span className="font-semibold text-[var(--accent-green)]">{priceLabel}</span>)
             </p>
           </div>
           <button
@@ -97,8 +98,8 @@ export function BookingDialog({
             {IBAN_LINE}
           </p>
           <p className="mt-2 text-xs text-stone-600">
-            В назначении платежа укажите: «Билет {row}
-            {seat}» и ваш email.
+            В комментарии к платежу напишите: билет {row}
+            {seat} и ваш email.
           </p>
         </div>
 
@@ -106,8 +107,7 @@ export function BookingDialog({
           <div className="mt-6 rounded-lg border border-[var(--accent-green)]/40 bg-emerald-50/80 p-4 text-sm text-emerald-950">
             <p className="font-semibold">Заявка отправлена</p>
             <p className="mt-2 leading-relaxed">
-              После проверки оплаты на указанный email будет выслан билет с номером места и буквой ряда — обычно{" "}
-              <strong>в течение суток</strong>. Спасибо!
+              Когда оплату проверят, на почту придет билет с рядом и номером места. Обычно это до суток.
             </p>
             <button
               type="button"
@@ -170,7 +170,7 @@ export function BookingDialog({
               disabled={submitting}
               className="w-full rounded-md bg-[var(--accent-red)] py-2.5 text-sm font-semibold text-white shadow hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {submitting ? "Отправка…" : "Отправить заявку"}
+              {submitting ? "Отправка..." : "Отправить заявку"}
             </button>
           </form>
         )}

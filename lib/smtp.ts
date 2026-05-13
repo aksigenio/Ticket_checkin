@@ -9,7 +9,7 @@ export function smtpConfigured(): boolean {
   );
 }
 
-/** Поле From: если MAIL_FROM не задано — используется SMTP_USER */
+/** Поле From: если MAIL_FROM не задано, берется SMTP_USER */
 export function getMailFrom(): string {
   const explicit = process.env.MAIL_FROM?.trim();
   if (explicit) return explicit;

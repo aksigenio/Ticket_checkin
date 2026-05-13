@@ -53,11 +53,11 @@ export function HomePage() {
           <p className="mt-1 text-lg text-stone-700">Peace Door Ball</p>
           <p className="mt-3 text-sm italic text-stone-600">Пьеса не про футбол</p>
           <div className="mt-4 flex flex-wrap justify-center gap-3 text-sm text-stone-700">
-            <span className="rounded-full bg-white/70 px-3 py-1">22 июня 2026 · 20:00</span>
+            <span className="rounded-full bg-white/70 px-3 py-1">22 июня 2026, 20:00</span>
             <span className="rounded-full bg-white/70 px-3 py-1">Лиссабон</span>
           </div>
           <p className="mt-3 text-xs text-stone-500">
-            Режиссёр-постановщик Алексей Худяков · Автор пьесы Егор Черлак
+            Режиссёр-постановщик Алексей Худяков, автор пьесы Егор Черлак
           </p>
         </header>
 
@@ -67,14 +67,14 @@ export function HomePage() {
           </div>
 
           <p className="px-1 pt-4 text-center text-sm text-stone-600">
-            Выберите свободное место на схеме. На узком экране схему можно прокручивать вбок.
+            Нажмите свободное место. На телефоне схему можно сдвинуть пальцем в сторону, если не все места видны.
           </p>
           <p className="mx-auto mt-3 max-w-xl rounded-lg border border-stone-300/90 bg-amber-50/90 px-3 py-2.5 text-center text-sm text-stone-800">
-            Билет придёт на указанный email <strong>в течение суток</strong> после проверки оплаты.
+            Билет придет на ваш email в течение суток после того, как оплату проверят.
           </p>
 
           {loadingMap ? (
-            <p className="py-8 text-center text-sm text-stone-500">Загрузка схемы…</p>
+            <p className="py-8 text-center text-sm text-stone-500">Загрузка...</p>
           ) : (
             <div className="relative -mx-1 mt-2 sm:mx-0">
               <div className="overflow-x-auto overscroll-x-contain pb-2 [-webkit-overflow-scrolling:touch]">
@@ -141,8 +141,8 @@ export function HomePage() {
               Адрес
             </h2>
             <p className="mt-1 leading-relaxed">
-              Boutique da Cultura — Espaço Boutique da Cultura, Av. Colégio Militar, em frente Rua Adelaide
-              Cabete, 1500-187 Lisboa, Portugal
+              Boutique da Cultura - Espaço Boutique da Cultura, Av. Colégio Militar, em frente Rua Adelaide Cabete,
+              1500-187 Lisboa, Portugal
             </p>
           </div>
           <div>
@@ -150,9 +150,9 @@ export function HomePage() {
               Цены
             </h2>
             <ul className="mt-1 list-inside list-disc space-y-1 text-stone-700">
-              <li>Ряд A — все места 15€</li>
-              <li>Ряды B, C, D, E — места 1, 2, 12 и 13 по 10€; остальные по 15€</li>
-              <li>Последние три ряда (F, G, H) — все места по 10€</li>
+              <li>Ряд A: все по 15€</li>
+              <li>Ряды B, C, D, E: места 1, 2, 12 и 13 по 10€, остальные по 15€</li>
+              <li>Ряды F, G, H: все по 10€</li>
             </ul>
           </div>
         </section>
@@ -202,7 +202,7 @@ function SeatButton({
     <button
       type="button"
       disabled={busy}
-      title={busy ? "Занято" : `${formatPriceEUR(price)} · FILA ${row}, место ${seat}`}
+      title={busy ? "Занято" : `${formatPriceEUR(price)}, FILA ${row}, место ${seat}`}
       onClick={() => {
         if (!busy) onPick();
       }}

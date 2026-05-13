@@ -12,7 +12,7 @@ export type RowMeta = {
 };
 
 /**
- * F, G, H — сплошной ряд без центрального прохода на схеме.
+ * F, G, H - сплошной ряд на схеме.
  * Aisle between E and F kept via sectionBreakBefore on F.
  */
 export const ROWS: RowMeta[] = [
@@ -31,5 +31,5 @@ export const ROWS: RowMeta[] = [
 ];
 
 export function seatLabel(row: RowLetter, seat: number): string {
-  return `FILA ${row} · ${seat}`;
+  return `FILA ${row} - ${seat}`;
 }

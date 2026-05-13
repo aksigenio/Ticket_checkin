@@ -12,8 +12,9 @@ const sans = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: "Мир Дверь Мяч — билеты",
-  description: "Покупка билетов на спектакль «Мир Дверь Мяч» (Peace Door Ball), Boutique da Cultura, Lisboa.",
+  title: "Мир Дверь Мяч - билеты",
+  description:
+    "Билеты на спектакль \"Мир Дверь Мяч\" (Peace Door Ball), Boutique da Cultura, Lisboa.",
 };
 
 export default function RootLayout({

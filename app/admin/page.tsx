@@ -71,10 +71,10 @@ export default function AdminPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-12 text-stone-100">
-      <h1 className="text-2xl font-semibold">Админка — заявки на билеты</h1>
+      <h1 className="text-2xl font-semibold">Заявки на билеты</h1>
       <p className="mt-2 text-sm text-stone-400">
-        Введите пароль из переменной окружения <code className="text-stone-200">ADMIN_PASSWORD</code>. После
-        проверки оплаты нажмите «Отправить билет» — письмо уйдёт на email покупателя.
+        Пароль из переменной <code className="text-stone-200">ADMIN_PASSWORD</code>. Когда оплату проверите,
+        нажмите &quot;Отправить билет&quot; - письмо уйдет покупателю на email.
       </p>
 
       {!token ? (
@@ -100,7 +100,7 @@ export default function AdminPage() {
             disabled={loading || !password}
             className="rounded-md bg-stone-200 px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-white disabled:opacity-50"
           >
-            {loading ? "Вход…" : "Войти"}
+            {loading ? "Вход..." : "Войти"}
           </button>
         </form>
       ) : null}
@@ -145,7 +145,7 @@ export default function AdminPage() {
                         className="rounded bg-emerald-700 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
                         onClick={() => void issueTicket(b.id)}
                       >
-                        {issuing === b.id ? "…" : "Отправить билет"}
+                        {issuing === b.id ? "..." : "Отправить билет"}
                       </button>
                     ) : null}
                   </td>

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { getServiceSupabase } from "@/lib/supabase-server";
+import type { SeatSelection } from "@/lib/booking-seats";
 import { customerTicketEmail, customerTicketEmailHtml } from "@/lib/email";
 import { sendSmtpMail, smtpConfigured } from "@/lib/smtp";
 import { loadTicketPosterForEmail, POSTER_CID } from "@/lib/ticket-poster";
+import { getServiceSupabase } from "@/lib/supabase-server";
 
 function checkAdmin(req: Request): boolean {
   const pwd = process.env.ADMIN_PASSWORD;
@@ -10,6 +11,24 @@ function checkAdmin(req: Request): boolean {
   const header = req.headers.get("authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   return token === pwd;
+}
+
+type BookingRow = {
+  id: string;
+  email: string;
+  row_letter: string;
+  seat_number: number;
+  status: string;
+  order_id: string | null;
+};
+
+function toSeatSelection(rows: BookingRow[]): SeatSelection[] {
+  return rows
+    .map((r) => ({
+      row: r.row_letter as SeatSelection["row"],
+      seat: r.seat_number,
+    }))
+    .sort((a, b) => a.row.localeCompare(b.row) || a.seat - b.seat);
 }
 
 export async function POST(req: Request) {
@@ -38,39 +57,57 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Укажите bookingId." }, { status: 400 });
   }
 
-  const { data: row, error } = await sb
+  const { data: anchor, error } = await sb
     .from("bookings")
-    .select("id, email, row_letter, seat_number, status")
+    .select("id, email, row_letter, seat_number, status, order_id")
     .eq("id", bookingId)
     .maybeSingle();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  if (!row) {
+  if (!anchor) {
     return NextResponse.json({ error: "Заявка не найдена." }, { status: 404 });
   }
-  if (row.status === "issued") {
-    return NextResponse.json({ error: "Билет уже был отправлен." }, { status: 409 });
+  if (anchor.status === "issued") {
+    return NextResponse.json({ error: "Билет(ы) уже были отправлены." }, { status: 409 });
   }
-  if (row.status !== "pending") {
+  if (anchor.status !== "pending") {
     return NextResponse.json({ error: "Нельзя выдать билет для этой заявки." }, { status: 400 });
   }
 
-  const rowLetter = row.row_letter as string;
-  const seatNum = row.seat_number as number;
+  let group: BookingRow[] = [anchor as BookingRow];
 
-  const { subject, text } = customerTicketEmail({
-    row: rowLetter,
-    seat: seatNum,
-  });
+  if (anchor.order_id) {
+    const { data: siblings, error: sibErr } = await sb
+      .from("bookings")
+      .select("id, email, row_letter, seat_number, status, order_id")
+      .eq("order_id", anchor.order_id)
+      .eq("status", "pending");
+
+    if (sibErr) {
+      return NextResponse.json({ error: sibErr.message }, { status: 500 });
+    }
+    group = (siblings ?? []) as BookingRow[];
+    if (group.length === 0) {
+      return NextResponse.json({ error: "Заявки заказа не найдены." }, { status: 404 });
+    }
+    const emails = new Set(group.map((r) => r.email));
+    if (emails.size > 1) {
+      return NextResponse.json({ error: "В заказе разные email — свяжитесь с разработчиком." }, { status: 500 });
+    }
+  }
+
+  const seats = toSeatSelection(group);
+  const customerEmail = group[0].email as string;
+
+  const { subject, text } = customerTicketEmail({ seats });
 
   const poster = await loadTicketPosterForEmail();
   const hasPoster = poster !== null;
 
   const html = customerTicketEmailHtml({
-    row: rowLetter,
-    seat: seatNum,
+    seats,
     posterCid: POSTER_CID,
     hasPoster,
   });
@@ -86,7 +123,7 @@ export async function POST(req: Request) {
     : undefined;
 
   const { error: mailErr } = await sendSmtpMail({
-    to: row.email as string,
+    to: customerEmail,
     subject,
     text,
     html,
@@ -97,7 +134,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: mailErr }, { status: 502 });
   }
 
-  const { error: upErr } = await sb.from("bookings").update({ status: "issued" }).eq("id", bookingId);
+  const ids = group.map((r) => r.id);
+  const { error: upErr } = await sb.from("bookings").update({ status: "issued" }).in("id", ids);
 
   if (upErr) {
     return NextResponse.json(
@@ -106,5 +144,5 @@ export async function POST(req: Request) {
     );
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, issuedCount: ids.length });
 }

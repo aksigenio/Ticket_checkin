@@ -27,7 +27,7 @@ export function adminNewBookingEmail(opts: {
     `Фамилия: ${opts.lastName}`,
     `Email покупателя: ${opts.email}`,
     "",
-    'Проверьте оплату на IBAN, потом в админке нажмите "Отправить билет".',
+    'Проверьте оплату (IBAN или Revolut @a_khudiakov), потом в админке нажмите "Отправить билет".',
   ].join("\n");
   return { subject, text };
 }

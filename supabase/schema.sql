@@ -12,8 +12,11 @@ create table if not exists public.bookings (
   last_name text not null,
   email text not null,
   receipt_path text,
+  order_id uuid,
   status public.booking_status not null default 'pending'
 );
+
+create index if not exists bookings_order_id_idx on public.bookings (order_id) where order_id is not null;
 
 create unique index if not exists bookings_unique_active_seat
   on public.bookings (row_letter, seat_number)

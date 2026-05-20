@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { RowLetter } from "@/lib/seats";
 
 const IBAN_LINE = "Aleksei Khudiakov - NL62 BUNQ 2076 1197 28";
+const REVOLUT_LINE = "@a_khudiakov";
 
 export function BookingDialog({
   row,
@@ -92,10 +93,15 @@ export function BookingDialog({
         <div className="mt-5 rounded-lg border border-stone-300 bg-white/80 p-4 text-sm text-stone-800">
           <p className="font-semibold text-stone-900">Оплата переводом</p>
           <p className="mt-2 leading-relaxed">
-            Переведите <strong>{priceLabel}</strong> (ровно сумму билета) на счёт:
+            Переведите <strong>{priceLabel}</strong> (ровно сумму билета) на IBAN или через Revolut:
           </p>
-          <p className="mt-2 rounded-md bg-stone-100 px-3 py-2 font-mono text-[13px] leading-relaxed">
+          <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-stone-600">IBAN</p>
+          <p className="mt-1 rounded-md bg-stone-100 px-3 py-2 font-mono text-[13px] leading-relaxed">
             {IBAN_LINE}
+          </p>
+          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-stone-600">Revolut</p>
+          <p className="mt-1 rounded-md bg-stone-100 px-3 py-2 font-mono text-[13px] leading-relaxed">
+            {REVOLUT_LINE}
           </p>
           <p className="mt-2 text-xs text-stone-600">
             В комментарии к платежу напишите: билет {row}

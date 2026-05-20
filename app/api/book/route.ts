@@ -1,17 +1,10 @@
+import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
-import { getServiceSupabase } from "@/lib/supabase-server";
-import { priceEur } from "@/lib/pricing";
-import type { RowLetter } from "@/lib/seats";
-import { ROWS } from "@/lib/seats";
+import { parseSeatsJson, totalPriceEur, type SeatSelection } from "@/lib/booking-seats";
 import { adminNewBookingEmail } from "@/lib/email";
 import { sendSmtpMail, smtpConfigured } from "@/lib/smtp";
-
-const ROW_SET = new Set<RowLetter>(["A", "B", "C", "D", "E", "F", "G", "H"]);
-
-function validSeat(row: RowLetter, seat: number): boolean {
-  const meta = ROWS.find((r) => r.label === row);
-  return !!meta && meta.seats.includes(seat);
-}
+import { priceEur } from "@/lib/pricing";
+import { getServiceSupabase } from "@/lib/supabase-server";
 
 export async function POST(req: Request) {
   const sb = getServiceSupabase();
@@ -44,16 +37,18 @@ export async function POST(req: Request) {
   const firstName = String(form.get("firstName") ?? "").trim();
   const lastName = String(form.get("lastName") ?? "").trim();
   const email = String(form.get("email") ?? "").trim();
-  const row = String(form.get("row") ?? "").trim().toUpperCase() as RowLetter;
-  const seatNum = Number(form.get("seat"));
+  const seatsRaw = String(form.get("seats") ?? "");
   const file = form.get("receipt");
 
   if (!firstName || !lastName || !email) {
     return NextResponse.json({ error: "Заполните имя, фамилию и email." }, { status: 400 });
   }
-  if (!ROW_SET.has(row) || !Number.isInteger(seatNum) || !validSeat(row, seatNum)) {
-    return NextResponse.json({ error: "Некорректное место." }, { status: 400 });
+
+  const seats = parseSeatsJson(seatsRaw);
+  if (!seats) {
+    return NextResponse.json({ error: "Некорректный список мест." }, { status: 400 });
   }
+
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ error: "Прикрепите чек об оплате." }, { status: 400 });
   }
@@ -61,84 +56,109 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Файл слишком большой (макс. 8 МБ)." }, { status: 400 });
   }
 
-  const amount = priceEur(row, seatNum);
+  for (const s of seats) {
+    const { data: existing, error: exErr } = await sb
+      .from("bookings")
+      .select("id")
+      .eq("row_letter", s.row)
+      .eq("seat_number", s.seat)
+      .in("status", ["pending", "issued"])
+      .maybeSingle();
 
-  const { data: existing, error: exErr } = await sb
-    .from("bookings")
-    .select("id")
-    .eq("row_letter", row)
-    .eq("seat_number", seatNum)
-    .in("status", ["pending", "issued"])
-    .maybeSingle();
-
-  if (exErr) {
-    return NextResponse.json({ error: exErr.message }, { status: 500 });
-  }
-  if (existing) {
-    return NextResponse.json(
-      { error: "Это место уже занято или на него офорлена заявка." },
-      { status: 409 },
-    );
-  }
-
-  const { data: inserted, error: insErr } = await sb
-    .from("bookings")
-    .insert({
-      row_letter: row,
-      seat_number: seatNum,
-      price_eur: amount,
-      first_name: firstName,
-      last_name: lastName,
-      email,
-      status: "pending",
-    })
-    .select("id")
-    .single();
-
-  if (insErr || !inserted) {
-    const code = (insErr as { code?: string } | undefined)?.code;
-    if (code === "23505") {
+    if (exErr) {
+      return NextResponse.json({ error: exErr.message }, { status: 500 });
+    }
+    if (existing) {
       return NextResponse.json(
-        { error: "Это место уже занято или на него офорлена заявка." },
+        { error: `Место FILA ${s.row}, ${s.seat} уже занято или на него оформлена заявка.` },
         { status: 409 },
       );
     }
-    return NextResponse.json({ error: insErr?.message ?? "Не удалось сохранить заявку." }, { status: 500 });
   }
 
-  const bookingId = inserted.id as string;
-  const ext = file.name.split(".").pop()?.replace(/[^a-zA-Z0-9]/g, "") || "bin";
-  const objectPath = `${bookingId}/receipt.${ext}`;
+  const orderId = randomUUID();
+  const bookingIds: string[] = [];
+  const insertedSeatKeys: SeatSelection[] = [];
 
+  for (const s of seats) {
+    const amount = priceEur(s.row, s.seat);
+    const { data: inserted, error: insErr } = await sb
+      .from("bookings")
+      .insert({
+        row_letter: s.row,
+        seat_number: s.seat,
+        price_eur: amount,
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        status: "pending",
+        order_id: orderId,
+      })
+      .select("id")
+      .single();
+
+    if (insErr || !inserted) {
+      const code = (insErr as { code?: string } | undefined)?.code;
+      if (bookingIds.length > 0) {
+        await sb.from("bookings").delete().in("id", bookingIds);
+      }
+      if (code === "23505") {
+        return NextResponse.json(
+          { error: `Место FILA ${s.row}, ${s.seat} уже занято или на него оформлена заявка.` },
+          { status: 409 },
+        );
+      }
+      if (code === "42703" || insErr?.message?.includes("order_id")) {
+        return NextResponse.json(
+          {
+            error:
+              "В базе нет колонки order_id. Выполните supabase/migrations/add_order_id.sql в Supabase SQL Editor.",
+          },
+          { status: 503 },
+        );
+      }
+      return NextResponse.json(
+        { error: insErr?.message ?? "Не удалось сохранить заявку." },
+        { status: 500 },
+      );
+    }
+
+    bookingIds.push(inserted.id as string);
+    insertedSeatKeys.push(s);
+  }
+
+  const ext = file.name.split(".").pop()?.replace(/[^a-zA-Z0-9]/g, "") || "bin";
+  const objectPath = `${orderId}/receipt.${ext}`;
   const buf = Buffer.from(await file.arrayBuffer());
+
   const { error: upErr } = await sb.storage.from("receipts").upload(objectPath, buf, {
     contentType: file.type || "application/octet-stream",
     upsert: true,
   });
 
   if (upErr) {
-    await sb.from("bookings").delete().eq("id", bookingId);
+    await sb.from("bookings").delete().in("id", bookingIds);
     return NextResponse.json({ error: `Загрузка чека: ${upErr.message}` }, { status: 500 });
   }
 
   const { error: upRowErr } = await sb
     .from("bookings")
     .update({ receipt_path: objectPath })
-    .eq("id", bookingId);
+    .in("id", bookingIds);
 
   if (upRowErr) {
     await sb.storage.from("receipts").remove([objectPath]);
-    await sb.from("bookings").delete().eq("id", bookingId);
+    await sb.from("bookings").delete().in("id", bookingIds);
     return NextResponse.json({ error: upRowErr.message }, { status: 500 });
   }
 
   const { data: signed } = await sb.storage.from("receipts").createSignedUrl(objectPath, 60 * 60 * 24 * 7);
 
   const { subject, text } = adminNewBookingEmail({
-    bookingId,
-    row,
-    seat: seatNum,
-    priceEur: amount,
+    orderId,
+    bookingIds,
+    seats: insertedSeatKeys,
+    totalEur: totalPriceEur(insertedSeatKeys),
     firstName,
     lastName,
     email,
@@ -168,5 +188,5 @@ export async function POST(req: Request) {
     );
   }
 
-  return NextResponse.json({ ok: true, bookingId });
+  return NextResponse.json({ ok: true, orderId, bookingIds });
 }

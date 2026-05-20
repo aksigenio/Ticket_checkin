@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 type Booking = {
   id: string;
@@ -12,7 +12,87 @@ type Booking = {
   last_name: string;
   email: string;
   status: string;
+  order_id: string | null;
 };
+
+type AdminRow = {
+  key: string;
+  issueBookingId: string;
+  created_at: string;
+  seatsLabel: string;
+  totalEur: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  status: string;
+  seatCount: number;
+  isGrouped: boolean;
+};
+
+function buildAdminRows(bookings: Booking[]): AdminRow[] {
+  const rows: AdminRow[] = [];
+  const seenOrders = new Set<string>();
+
+  for (const b of bookings) {
+    if (b.order_id && b.status === "pending") {
+      if (seenOrders.has(b.order_id)) continue;
+      seenOrders.add(b.order_id);
+      const group = bookings.filter((x) => x.order_id === b.order_id && x.status === "pending");
+      rows.push({
+        key: `order-${b.order_id}`,
+        issueBookingId: group[0].id,
+        created_at: b.created_at,
+        seatsLabel: group.map((g) => `${g.row_letter}${g.seat_number}`).join(", "),
+        totalEur: group.reduce((s, g) => s + g.price_eur, 0),
+        first_name: b.first_name,
+        last_name: b.last_name,
+        email: b.email,
+        status: b.status,
+        seatCount: group.length,
+        isGrouped: group.length > 1,
+      });
+      continue;
+    }
+
+    if (b.order_id && b.status !== "pending") {
+      const group = bookings.filter((x) => x.order_id === b.order_id);
+      const lead = group[0];
+      if (lead.id !== b.id) continue;
+      rows.push({
+        key: `order-done-${b.order_id}`,
+        issueBookingId: b.id,
+        created_at: b.created_at,
+        seatsLabel: group.map((g) => `${g.row_letter}${g.seat_number}`).join(", "),
+        totalEur: group.reduce((s, g) => s + g.price_eur, 0),
+        first_name: b.first_name,
+        last_name: b.last_name,
+        email: b.email,
+        status: b.status,
+        seatCount: group.length,
+        isGrouped: group.length > 1,
+      });
+      continue;
+    }
+
+    if (!b.order_id) {
+      rows.push({
+        key: b.id,
+        issueBookingId: b.id,
+        created_at: b.created_at,
+        seatsLabel: `${b.row_letter}${b.seat_number}`,
+        totalEur: b.price_eur,
+        first_name: b.first_name,
+        last_name: b.last_name,
+        email: b.email,
+        status: b.status,
+        seatCount: 1,
+        isGrouped: false,
+      });
+    }
+  }
+
+  return rows;
+}
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
@@ -21,6 +101,8 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [issuing, setIssuing] = useState<string | null>(null);
+
+  const adminRows = useMemo(() => buildAdminRows(bookings), [bookings]);
 
   const load = useCallback(async (pwd: string) => {
     setLoading(true);
@@ -73,8 +155,8 @@ export default function AdminPage() {
     <main className="mx-auto max-w-4xl px-4 py-12 text-stone-100">
       <h1 className="text-2xl font-semibold">Заявки на билеты</h1>
       <p className="mt-2 text-sm text-stone-400">
-        Пароль из переменной <code className="text-stone-200">ADMIN_PASSWORD</code>. Когда оплату проверите,
-        нажмите &quot;Отправить билет&quot; - письмо уйдет покупателю на email.
+        Пароль из переменной <code className="text-stone-200">ADMIN_PASSWORD</code>. После проверки оплаты
+        нажмите «Отправить» — покупателю уйдёт одно письмо со всеми местами заказа.
       </p>
 
       {!token ? (
@@ -113,8 +195,8 @@ export default function AdminPage() {
             <thead className="bg-stone-900/80">
               <tr>
                 <th className="px-3 py-2 font-medium text-stone-300">Дата</th>
-                <th className="px-3 py-2 font-medium text-stone-300">Место</th>
-                <th className="px-3 py-2 font-medium text-stone-300">Цена</th>
+                <th className="px-3 py-2 font-medium text-stone-300">Места</th>
+                <th className="px-3 py-2 font-medium text-stone-300">Сумма</th>
                 <th className="px-3 py-2 font-medium text-stone-300">Имя</th>
                 <th className="px-3 py-2 font-medium text-stone-300">Email</th>
                 <th className="px-3 py-2 font-medium text-stone-300">Статус</th>
@@ -122,16 +204,18 @@ export default function AdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-800 bg-stone-950/40">
-              {bookings.map((b) => (
-                <tr key={b.id}>
+              {adminRows.map((b) => (
+                <tr key={b.key}>
                   <td className="whitespace-nowrap px-3 py-2 text-stone-400">
                     {new Date(b.created_at).toLocaleString("ru-RU")}
                   </td>
                   <td className="px-3 py-2 font-mono text-stone-100">
-                    {b.row_letter}
-                    {b.seat_number}
+                    {b.seatsLabel}
+                    {b.isGrouped ? (
+                      <span className="ml-1 text-xs text-stone-500">({b.seatCount})</span>
+                    ) : null}
                   </td>
-                  <td className="px-3 py-2">{b.price_eur}€</td>
+                  <td className="px-3 py-2">{b.totalEur}€</td>
                   <td className="px-3 py-2">
                     {b.first_name} {b.last_name}
                   </td>
@@ -141,11 +225,15 @@ export default function AdminPage() {
                     {b.status === "pending" ? (
                       <button
                         type="button"
-                        disabled={issuing === b.id}
+                        disabled={issuing === b.issueBookingId}
                         className="rounded bg-emerald-700 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
-                        onClick={() => void issueTicket(b.id)}
+                        onClick={() => void issueTicket(b.issueBookingId)}
                       >
-                        {issuing === b.id ? "..." : "Отправить билет"}
+                        {issuing === b.issueBookingId
+                          ? "..."
+                          : b.seatCount > 1
+                            ? `Отправить (${b.seatCount})`
+                            : "Отправить билет"}
                       </button>
                     ) : null}
                   </td>
@@ -153,7 +241,7 @@ export default function AdminPage() {
               ))}
             </tbody>
           </table>
-          {bookings.length === 0 ? <p className="p-4 text-stone-500">Пока нет заявок.</p> : null}
+          {adminRows.length === 0 ? <p className="p-4 text-stone-500">Пока нет заявок.</p> : null}
         </div>
       ) : null}
 

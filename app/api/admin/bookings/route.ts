@@ -21,7 +21,9 @@ export async function GET(req: Request) {
 
   const { data, error } = await sb
     .from("bookings")
-    .select("id, created_at, row_letter, seat_number, price_eur, first_name, last_name, email, status")
+    .select(
+      "id, created_at, row_letter, seat_number, price_eur, first_name, last_name, email, status, order_id",
+    )
     .order("created_at", { ascending: false });
 
   if (error) {

@@ -1,23 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import {
-  formatPaymentComment,
-  formatSeatList,
-  type SeatSelection,
-} from "@/lib/seats";
+import type { RowLetter } from "@/lib/seats";
 
 const IBAN_LINE = "Aleksei Khudiakov - NL62 BUNQ 2076 1197 28";
 const REVOLUT_LINE = "@a_khudiakov";
 
 export function BookingDialog({
-  seats,
-  totalLabel,
+  row,
+  seat,
+  priceLabel,
   onClose,
   onBooked,
 }: {
-  seats: SeatSelection[];
-  totalLabel: string;
+  row: RowLetter;
+  seat: number;
+  priceLabel: string;
   onClose: () => void;
   onBooked: () => void;
 }) {
@@ -28,9 +26,6 @@ export function BookingDialog({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
-
-  const count = seats.length;
-  const seatListText = formatSeatList(seats);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,7 +44,8 @@ export function BookingDialog({
       fd.set("firstName", firstName.trim());
       fd.set("lastName", lastName.trim());
       fd.set("email", email.trim());
-      fd.set("seats", JSON.stringify(seats));
+      fd.set("row", row);
+      fd.set("seat", String(seat));
       fd.set("receipt", file);
       const res = await fetch("/api/book", { method: "POST", body: fd });
       const data = await res.json().catch(() => ({}));
@@ -66,11 +62,6 @@ export function BookingDialog({
     }
   }
 
-  const paymentComment =
-    email.trim().length > 0
-      ? formatPaymentComment(seats, email.trim())
-      : formatPaymentComment(seats, "ваш email");
-
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-4 sm:items-center">
       <div
@@ -81,19 +72,12 @@ export function BookingDialog({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold text-stone-900">
-              {count === 1 ? "Оформление места" : `Оформление (${count} мест)`}
+              Оформление места
             </h2>
-            <ul className="mt-2 space-y-1 text-sm text-stone-700">
-              {seats.map((s) => (
-                <li key={`${s.row}-${s.seat}`}>
-                  FILA <span className="font-semibold">{s.row}</span>, место{" "}
-                  <span className="font-semibold">{s.seat}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-2 text-sm text-stone-700">
-              Итого:{" "}
-              <span className="font-semibold text-[var(--accent-green)]">{totalLabel}</span>
+            <p className="mt-1 text-sm text-stone-700">
+              FILA <span className="font-semibold">{row}</span>, место{" "}
+              <span className="font-semibold">{seat}</span>{" "}
+              (<span className="font-semibold text-[var(--accent-green)]">{priceLabel}</span>)
             </p>
           </div>
           <button
@@ -108,8 +92,7 @@ export function BookingDialog({
         <div className="mt-5 rounded-lg border border-stone-300 bg-white/80 p-4 text-sm text-stone-800">
           <p className="font-semibold text-stone-900">Оплата переводом</p>
           <p className="mt-2 leading-relaxed">
-            Переведите <strong>{totalLabel}</strong> (ровно сумму {count === 1 ? "билета" : "билетов"}) на
-            IBAN или через Revolut:
+            Переведите <strong>{priceLabel}</strong> (ровно сумму билета) на IBAN или через Revolut:
           </p>
           <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-stone-600">IBAN</p>
           <p className="mt-1 rounded-md bg-stone-100 px-3 py-2 font-mono text-[13px] leading-relaxed">
@@ -120,7 +103,8 @@ export function BookingDialog({
             {REVOLUT_LINE}
           </p>
           <p className="mt-2 text-xs text-stone-600">
-            В комментарии к платежу напишите: {paymentComment}.
+            В комментарии к платежу напишите: билет {row}
+            {seat} и ваш email.
           </p>
         </div>
 
@@ -128,8 +112,7 @@ export function BookingDialog({
           <div className="mt-6 rounded-lg border border-[var(--accent-green)]/40 bg-emerald-50/80 p-4 text-sm text-emerald-950">
             <p className="font-semibold">Заявка отправлена</p>
             <p className="mt-2 leading-relaxed">
-              Когда оплату проверят, на почту придёт {count === 1 ? "письмо с билетом" : "одно письмо со всеми билетами"}{" "}
-              ({seatListText}). Обычно это до суток.
+              Когда оплату проверят, на почту придет билет с рядом и номером места. Обычно это до суток.
             </p>
             <button
               type="button"

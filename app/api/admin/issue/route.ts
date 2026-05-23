@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
+import { getServiceSupabase } from "@/lib/supabase-server";
 import { customerTicketEmail, customerTicketEmailHtml } from "@/lib/email";
 import { sendSmtpMail, smtpConfigured } from "@/lib/smtp";
-import type { SeatSelection } from "@/lib/seats";
 import { loadTicketPosterForEmail, POSTER_CID } from "@/lib/ticket-poster";
-import { getServiceSupabase } from "@/lib/supabase-server";
 
 function checkAdmin(req: Request): boolean {
   const pwd = process.env.ADMIN_PASSWORD;
@@ -11,51 +10,6 @@ function checkAdmin(req: Request): boolean {
   const header = req.headers.get("authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   return token === pwd;
-}
-
-type BookingRow = {
-  id: string;
-  email: string;
-  row_letter: string;
-  seat_number: number;
-  status: string;
-  receipt_path: string | null;
-};
-
-function toSeatSelection(rows: BookingRow[]): SeatSelection[] {
-  return rows
-    .map((r) => ({
-      row: r.row_letter as SeatSelection["row"],
-      seat: r.seat_number,
-    }))
-    .sort((a, b) => a.row.localeCompare(b.row) || a.seat - b.seat);
-}
-
-async function loadBookingGroup(
-  sb: NonNullable<ReturnType<typeof getServiceSupabase>>,
-  anchor: BookingRow,
-): Promise<BookingRow[]> {
-  if (anchor.receipt_path) {
-    const { data: siblings, error: sibErr } = await sb
-      .from("bookings")
-      .select("id, email, row_letter, seat_number, status, receipt_path")
-      .eq("receipt_path", anchor.receipt_path)
-      .eq("status", "pending");
-
-    if (sibErr) {
-      throw new Error(sibErr.message);
-    }
-    const group = (siblings ?? []) as BookingRow[];
-    if (group.length > 0) {
-      const emails = new Set(group.map((r) => r.email));
-      if (emails.size > 1) {
-        throw new Error("В заказе разные email — свяжитесь с разработчиком.");
-      }
-      return group;
-    }
-  }
-
-  return [anchor];
 }
 
 export async function POST(req: Request) {
@@ -84,43 +38,39 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Укажите bookingId." }, { status: 400 });
   }
 
-  const { data: anchor, error } = await sb
+  const { data: row, error } = await sb
     .from("bookings")
-    .select("id, email, row_letter, seat_number, status, receipt_path")
+    .select("id, email, row_letter, seat_number, status")
     .eq("id", bookingId)
     .maybeSingle();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  if (!anchor) {
+  if (!row) {
     return NextResponse.json({ error: "Заявка не найдена." }, { status: 404 });
   }
-  if (anchor.status === "issued") {
-    return NextResponse.json({ error: "Билет(ы) уже были отправлены." }, { status: 409 });
+  if (row.status === "issued") {
+    return NextResponse.json({ error: "Билет уже был отправлен." }, { status: 409 });
   }
-  if (anchor.status !== "pending") {
+  if (row.status !== "pending") {
     return NextResponse.json({ error: "Нельзя выдать билет для этой заявки." }, { status: 400 });
   }
 
-  let group: BookingRow[];
-  try {
-    group = await loadBookingGroup(sb, anchor as BookingRow);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Ошибка загрузки заказа.";
-    return NextResponse.json({ error: msg }, { status: 500 });
-  }
+  const rowLetter = row.row_letter as string;
+  const seatNum = row.seat_number as number;
 
-  const seats = toSeatSelection(group);
-  const customerEmail = group[0].email as string;
-
-  const { subject, text } = customerTicketEmail({ seats });
+  const { subject, text } = customerTicketEmail({
+    row: rowLetter,
+    seat: seatNum,
+  });
 
   const poster = await loadTicketPosterForEmail();
   const hasPoster = poster !== null;
 
   const html = customerTicketEmailHtml({
-    seats,
+    row: rowLetter,
+    seat: seatNum,
     posterCid: POSTER_CID,
     hasPoster,
   });
@@ -136,7 +86,7 @@ export async function POST(req: Request) {
     : undefined;
 
   const { error: mailErr } = await sendSmtpMail({
-    to: customerEmail,
+    to: row.email as string,
     subject,
     text,
     html,
@@ -147,8 +97,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: mailErr }, { status: 502 });
   }
 
-  const ids = group.map((r) => r.id);
-  const { error: upErr } = await sb.from("bookings").update({ status: "issued" }).in("id", ids);
+  const { error: upErr } = await sb.from("bookings").update({ status: "issued" }).eq("id", bookingId);
 
   if (upErr) {
     return NextResponse.json(
@@ -157,5 +106,5 @@ export async function POST(req: Request) {
     );
   }
 
-  return NextResponse.json({ ok: true, issuedCount: ids.length });
+  return NextResponse.json({ ok: true });
 }

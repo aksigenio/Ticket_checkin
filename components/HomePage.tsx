@@ -1,17 +1,21 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { ROWS, seatKey, totalPriceEur, type RowLetter, type SeatSelection } from "@/lib/seats";
-import { formatPriceEUR } from "@/lib/pricing";
+import type { RowLetter } from "@/lib/seats";
+import { ROWS } from "@/lib/seats";
+import { formatPriceEUR, priceEur } from "@/lib/pricing";
 import { BookingDialog } from "./BookingDialog";
+
+function seatKey(row: RowLetter, seat: number) {
+  return `${row}-${seat}`;
+}
 
 const FRONT_ROWS = new Set<RowLetter>(["A", "B", "C", "D", "E"]);
 
 export function HomePage() {
   const [occupied, setOccupied] = useState<Set<string>>(new Set());
   const [loadingMap, setLoadingMap] = useState(true);
-  const [cart, setCart] = useState<SeatSelection[]>([]);
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [selection, setSelection] = useState<{ row: RowLetter; seat: number } | null>(null);
 
   const refreshOccupied = useCallback(async () => {
     setLoadingMap(true);
@@ -31,32 +35,13 @@ export function HomePage() {
     void refreshOccupied();
   }, [refreshOccupied]);
 
-  const cartKeys = useMemo(() => new Set(cart.map((s) => seatKey(s.row, s.seat))), [cart]);
-
-  const cartTotal = useMemo(() => totalPriceEur(cart), [cart]);
-
-  function toggleSeat(row: RowLetter, seat: number) {
-    const key = seatKey(row, seat);
-    if (occupied.has(key)) return;
-
-    setCart((prev) => {
-      const exists = prev.some((s) => s.row === row && s.seat === seat);
-      if (exists) {
-        return prev.filter((s) => !(s.row === row && s.seat === seat));
-      }
-      return [...prev, { row, seat }].sort(
-        (a, b) => a.row.localeCompare(b.row) || a.seat - b.seat,
-      );
-    });
-  }
-
-  function clearCart() {
-    setCart([]);
-    setCheckoutOpen(false);
-  }
+  const dialogPrice = useMemo(() => {
+    if (!selection) return 0;
+    return priceEur(selection.row, selection.seat);
+  }, [selection]);
 
   return (
-    <main className="mx-auto max-w-6xl px-3 py-8 pb-28 sm:px-6 sm:py-10 sm:pb-32">
+    <main className="mx-auto max-w-6xl px-3 py-8 pb-16 sm:px-6 sm:py-10">
       <div className="paper-texture rounded-2xl border border-stone-300/80 p-4 shadow-2xl shadow-black/40 sm:p-10">
         <header className="border-b border-stone-300/80 pb-6 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--accent-red)]">
@@ -82,11 +67,10 @@ export function HomePage() {
           </div>
 
           <p className="px-1 pt-4 text-center text-sm text-stone-600">
-            Нажимайте свободные места, чтобы добавить их в заказ. Повторный клик убирает место из заказа.
-            На телефоне схему можно сдвинуть пальцем в сторону.
+            Нажмите свободное место. На телефоне схему можно сдвинуть пальцем в сторону, если не все места видны.
           </p>
           <p className="mx-auto mt-3 max-w-xl rounded-lg border border-stone-300/90 bg-amber-50/90 px-3 py-2.5 text-center text-sm text-stone-800">
-            После проверки оплаты на email придёт одно письмо со всеми выбранными местами. Обычно до суток.
+            Билет придет на ваш email в течение суток после того, как оплату проверят.
           </p>
 
           {loadingMap ? (
@@ -110,8 +94,7 @@ export function HomePage() {
                                   row={row.label}
                                   seat={n}
                                   occupied={occupied}
-                                  selected={cartKeys}
-                                  onToggle={() => toggleSeat(row.label, n)}
+                                  onPick={() => setSelection({ row: row.label, seat: n })}
                                 />
                                 {row.aisleAfterIndex !== undefined && idx === row.aisleAfterIndex - 1 ? (
                                   <div
@@ -181,44 +164,14 @@ export function HomePage() {
         </p>
       </div>
 
-      {cart.length > 0 && !checkoutOpen ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-300 bg-[#f4efe4]/95 px-4 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.12)] backdrop-blur-sm sm:px-6">
-          <div className="mx-auto flex max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0 text-sm text-stone-800">
-              <p className="font-semibold text-stone-900">
-                Выбрано мест: {cart.length} · {formatPriceEUR(cartTotal)}
-              </p>
-              <p className="mt-0.5 truncate text-stone-600">
-                {cart.map((s) => `${s.row}${s.seat}`).join(", ")}
-              </p>
-            </div>
-            <div className="flex shrink-0 gap-2">
-              <button
-                type="button"
-                className="rounded-md border border-stone-400 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200/60"
-                onClick={clearCart}
-              >
-                Очистить
-              </button>
-              <button
-                type="button"
-                className="rounded-md bg-[var(--accent-red)] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
-                onClick={() => setCheckoutOpen(true)}
-              >
-                Оформить
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {checkoutOpen && cart.length > 0 ? (
+      {selection ? (
         <BookingDialog
-          seats={cart}
-          totalLabel={formatPriceEUR(cartTotal)}
-          onClose={() => setCheckoutOpen(false)}
+          row={selection.row}
+          seat={selection.seat}
+          priceLabel={formatPriceEUR(dialogPrice)}
+          onClose={() => setSelection(null)}
           onBooked={() => {
-            clearCart();
+            setSelection(null);
             void refreshOccupied();
           }}
         />
@@ -231,18 +184,16 @@ function SeatButton({
   row,
   seat,
   occupied,
-  selected,
-  onToggle,
+  onPick,
 }: {
   row: RowLetter;
   seat: number;
   occupied: Set<string>;
-  selected: Set<string>;
-  onToggle: () => void;
+  onPick: () => void;
 }) {
   const key = seatKey(row, seat);
   const busy = occupied.has(key);
-  const picked = selected.has(key);
+  const price = priceEur(row, seat);
   const base =
     "shrink-0 flex items-center justify-center rounded-md border font-semibold text-stone-900 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-red)] focus-visible:ring-offset-1 " +
     "h-8 min-h-8 min-w-[1.85rem] max-w-[1.85rem] text-[11px] sm:h-10 sm:min-h-10 sm:min-w-10 sm:max-w-none sm:text-sm";
@@ -251,22 +202,14 @@ function SeatButton({
     <button
       type="button"
       disabled={busy}
-      title={
-        busy
-          ? "Занято"
-          : picked
-            ? `Убрать из заказа, FILA ${row}, место ${seat}`
-            : `Добавить в заказ, FILA ${row}, место ${seat}`
-      }
+      title={busy ? "Занято" : `${formatPriceEUR(price)}, FILA ${row}, место ${seat}`}
       onClick={() => {
-        if (!busy) onToggle();
+        if (!busy) onPick();
       }}
       className={
         busy
           ? `${base} cursor-not-allowed border-stone-400 bg-stone-400/90 text-stone-700 opacity-80`
-          : picked
-            ? `${base} border-[var(--accent-green)] bg-emerald-100 shadow-sm ring-1 ring-[var(--accent-green)]/50`
-            : `${base} border-stone-500 bg-white shadow-sm hover:border-stone-800 hover:bg-amber-50`
+          : `${base} border-stone-500 bg-white shadow-sm hover:border-stone-800 hover:bg-amber-50`
       }
     >
       {seat}

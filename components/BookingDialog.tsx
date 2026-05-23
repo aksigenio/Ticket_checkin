@@ -5,7 +5,7 @@ import {
   formatPaymentComment,
   formatSeatList,
   type SeatSelection,
-} from "@/lib/booking-seats";
+} from "@/lib/seats";
 
 const IBAN_LINE = "Aleksei Khudiakov - NL62 BUNQ 2076 1197 28";
 const REVOLUT_LINE = "@a_khudiakov";

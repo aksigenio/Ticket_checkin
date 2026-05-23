@@ -22,7 +22,7 @@ export async function GET(req: Request) {
   const { data, error } = await sb
     .from("bookings")
     .select(
-      "id, created_at, row_letter, seat_number, price_eur, first_name, last_name, email, status, order_id",
+      "id, created_at, row_letter, seat_number, price_eur, first_name, last_name, email, status, receipt_path",
     )
     .order("created_at", { ascending: false });
 

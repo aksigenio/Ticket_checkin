@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import type { SeatSelection } from "@/lib/booking-seats";
 import { customerTicketEmail, customerTicketEmailHtml } from "@/lib/email";
 import { sendSmtpMail, smtpConfigured } from "@/lib/smtp";
+import type { SeatSelection } from "@/lib/seats";
 import { loadTicketPosterForEmail, POSTER_CID } from "@/lib/ticket-poster";
 import { getServiceSupabase } from "@/lib/supabase-server";
 
@@ -19,7 +19,7 @@ type BookingRow = {
   row_letter: string;
   seat_number: number;
   status: string;
-  order_id: string | null;
+  receipt_path: string | null;
 };
 
 function toSeatSelection(rows: BookingRow[]): SeatSelection[] {
@@ -29,6 +29,33 @@ function toSeatSelection(rows: BookingRow[]): SeatSelection[] {
       seat: r.seat_number,
     }))
     .sort((a, b) => a.row.localeCompare(b.row) || a.seat - b.seat);
+}
+
+async function loadBookingGroup(
+  sb: NonNullable<ReturnType<typeof getServiceSupabase>>,
+  anchor: BookingRow,
+): Promise<BookingRow[]> {
+  if (anchor.receipt_path) {
+    const { data: siblings, error: sibErr } = await sb
+      .from("bookings")
+      .select("id, email, row_letter, seat_number, status, receipt_path")
+      .eq("receipt_path", anchor.receipt_path)
+      .eq("status", "pending");
+
+    if (sibErr) {
+      throw new Error(sibErr.message);
+    }
+    const group = (siblings ?? []) as BookingRow[];
+    if (group.length > 0) {
+      const emails = new Set(group.map((r) => r.email));
+      if (emails.size > 1) {
+        throw new Error("В заказе разные email — свяжитесь с разработчиком.");
+      }
+      return group;
+    }
+  }
+
+  return [anchor];
 }
 
 export async function POST(req: Request) {
@@ -59,7 +86,7 @@ export async function POST(req: Request) {
 
   const { data: anchor, error } = await sb
     .from("bookings")
-    .select("id, email, row_letter, seat_number, status, order_id")
+    .select("id, email, row_letter, seat_number, status, receipt_path")
     .eq("id", bookingId)
     .maybeSingle();
 
@@ -76,26 +103,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Нельзя выдать билет для этой заявки." }, { status: 400 });
   }
 
-  let group: BookingRow[] = [anchor as BookingRow];
-
-  if (anchor.order_id) {
-    const { data: siblings, error: sibErr } = await sb
-      .from("bookings")
-      .select("id, email, row_letter, seat_number, status, order_id")
-      .eq("order_id", anchor.order_id)
-      .eq("status", "pending");
-
-    if (sibErr) {
-      return NextResponse.json({ error: sibErr.message }, { status: 500 });
-    }
-    group = (siblings ?? []) as BookingRow[];
-    if (group.length === 0) {
-      return NextResponse.json({ error: "Заявки заказа не найдены." }, { status: 404 });
-    }
-    const emails = new Set(group.map((r) => r.email));
-    if (emails.size > 1) {
-      return NextResponse.json({ error: "В заказе разные email — свяжитесь с разработчиком." }, { status: 500 });
-    }
+  let group: BookingRow[];
+  try {
+    group = await loadBookingGroup(sb, anchor as BookingRow);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Ошибка загрузки заказа.";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 
   const seats = toSeatSelection(group);

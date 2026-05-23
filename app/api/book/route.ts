@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
-import { parseSeatsJson, totalPriceEur, type SeatSelection } from "@/lib/booking-seats";
+import { parseSeatsJson, totalPriceEur, type SeatSelection } from "@/lib/seats";
 import { adminNewBookingEmail } from "@/lib/email";
 import { sendSmtpMail, smtpConfigured } from "@/lib/smtp";
 import { priceEur } from "@/lib/pricing";
@@ -92,7 +92,6 @@ export async function POST(req: Request) {
         last_name: lastName,
         email,
         status: "pending",
-        order_id: orderId,
       })
       .select("id")
       .single();
@@ -106,15 +105,6 @@ export async function POST(req: Request) {
         return NextResponse.json(
           { error: `Место FILA ${s.row}, ${s.seat} уже занято или на него оформлена заявка.` },
           { status: 409 },
-        );
-      }
-      if (code === "42703" || insErr?.message?.includes("order_id")) {
-        return NextResponse.json(
-          {
-            error:
-              "В базе нет колонки order_id. Выполните supabase/migrations/add_order_id.sql в Supabase SQL Editor.",
-          },
-          { status: 503 },
         );
       }
       return NextResponse.json(

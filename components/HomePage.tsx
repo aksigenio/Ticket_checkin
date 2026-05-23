@@ -1,9 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { seatKey, totalPriceEur, type SeatSelection } from "@/lib/booking-seats";
-import type { RowLetter } from "@/lib/seats";
-import { ROWS } from "@/lib/seats";
+import { ROWS, seatKey, totalPriceEur, type RowLetter, type SeatSelection } from "@/lib/seats";
 import { formatPriceEUR } from "@/lib/pricing";
 import { BookingDialog } from "./BookingDialog";
 

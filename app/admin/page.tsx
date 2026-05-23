@@ -12,7 +12,7 @@ type Booking = {
   last_name: string;
   email: string;
   status: string;
-  order_id: string | null;
+  receipt_path: string | null;
 };
 
 type AdminRow = {
@@ -29,69 +29,46 @@ type AdminRow = {
   isGrouped: boolean;
 };
 
+function groupKey(b: Booking): string {
+  if (b.receipt_path) return `receipt:${b.receipt_path}`;
+  return `single:${b.id}`;
+}
+
 function buildAdminRows(bookings: Booking[]): AdminRow[] {
-  const rows: AdminRow[] = [];
-  const seenOrders = new Set<string>();
+  const byKey = new Map<string, Booking[]>();
 
   for (const b of bookings) {
-    if (b.order_id && b.status === "pending") {
-      if (seenOrders.has(b.order_id)) continue;
-      seenOrders.add(b.order_id);
-      const group = bookings.filter((x) => x.order_id === b.order_id && x.status === "pending");
-      rows.push({
-        key: `order-${b.order_id}`,
-        issueBookingId: group[0].id,
-        created_at: b.created_at,
-        seatsLabel: group.map((g) => `${g.row_letter}${g.seat_number}`).join(", "),
-        totalEur: group.reduce((s, g) => s + g.price_eur, 0),
-        first_name: b.first_name,
-        last_name: b.last_name,
-        email: b.email,
-        status: b.status,
-        seatCount: group.length,
-        isGrouped: group.length > 1,
-      });
-      continue;
-    }
-
-    if (b.order_id && b.status !== "pending") {
-      const group = bookings.filter((x) => x.order_id === b.order_id);
-      const lead = group[0];
-      if (lead.id !== b.id) continue;
-      rows.push({
-        key: `order-done-${b.order_id}`,
-        issueBookingId: b.id,
-        created_at: b.created_at,
-        seatsLabel: group.map((g) => `${g.row_letter}${g.seat_number}`).join(", "),
-        totalEur: group.reduce((s, g) => s + g.price_eur, 0),
-        first_name: b.first_name,
-        last_name: b.last_name,
-        email: b.email,
-        status: b.status,
-        seatCount: group.length,
-        isGrouped: group.length > 1,
-      });
-      continue;
-    }
-
-    if (!b.order_id) {
-      rows.push({
-        key: b.id,
-        issueBookingId: b.id,
-        created_at: b.created_at,
-        seatsLabel: `${b.row_letter}${b.seat_number}`,
-        totalEur: b.price_eur,
-        first_name: b.first_name,
-        last_name: b.last_name,
-        email: b.email,
-        status: b.status,
-        seatCount: 1,
-        isGrouped: false,
-      });
-    }
+    const key = groupKey(b);
+    const list = byKey.get(key) ?? [];
+    list.push(b);
+    byKey.set(key, list);
   }
 
-  return rows;
+  const rows: AdminRow[] = [];
+
+  for (const [key, group] of byKey) {
+    const sorted = [...group].sort(
+      (a, b) => a.row_letter.localeCompare(b.row_letter) || a.seat_number - b.seat_number,
+    );
+    const lead = sorted[0];
+    rows.push({
+      key,
+      issueBookingId: lead.id,
+      created_at: lead.created_at,
+      seatsLabel: sorted.map((g) => `${g.row_letter}${g.seat_number}`).join(", "),
+      totalEur: sorted.reduce((s, g) => s + g.price_eur, 0),
+      first_name: lead.first_name,
+      last_name: lead.last_name,
+      email: lead.email,
+      status: sorted.every((g) => g.status === lead.status) ? lead.status : "mixed",
+      seatCount: sorted.length,
+      isGrouped: sorted.length > 1,
+    });
+  }
+
+  return rows.sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
 }
 
 export default function AdminPage() {

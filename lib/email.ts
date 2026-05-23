@@ -1,5 +1,4 @@
-import type { SeatSelection } from "@/lib/booking-seats";
-import { formatSeatList } from "@/lib/booking-seats";
+import { formatSeatList, type SeatSelection } from "@/lib/seats";
 
 const VENUE_BLOCK = `Boutique da Cultura
 Espaço Boutique da Cultura, Av. Colégio Militar, em frente Rua Adelaide Cabete, 1500-187 Lisboa, Portugal`;

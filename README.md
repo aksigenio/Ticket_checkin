@@ -69,7 +69,7 @@ cd mir-dver-myach-bilet
 npm install
 ```
 
-2. **Supabase**: создайте проект → SQL Editor → выполните `supabase/schema.sql`. Если база уже была создана раньше, дополнительно выполните `supabase/migrations/add_order_id.sql`.
+2. **Supabase**: создайте проект → SQL Editor → выполните `supabase/schema.sql`.
 
 3. **Storage**: Storage → New bucket → имя **`receipts`**, **Private**.
 
